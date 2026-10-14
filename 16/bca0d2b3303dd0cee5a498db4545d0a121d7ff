@@ -1,0 +1,25 @@
+internal/provider/organization_action_secret_resource.go
+  s_a44a1fd9a22e4c::t_5927379cadfd45 360
+  s_a44a1fd9a22e4c::t_a3200b32cfc18b 58,69-71,86-116,160,219-221,226-230,235,361-363,368-372,377
+  s_a44a1fd9a22e4c::t_9298a1a8884685 357-359
+internal/provider/repository_action_secret_resource.go
+  s_a44a1fd9a22e4c::t_9298a1a8884685 10,13,366-368
+  s_a44a1fd9a22e4c::t_5927379cadfd45 369
+  s_a44a1fd9a22e4c::t_a3200b32cfc18b 57,68-70,83-113,138,195-197,202-206,212,370-372,377-381,387
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "16bca0d2b3303dd0cee5a498db4545d0a121d7ff",
+  "prompts": {},
+  "sessions": {
+    "s_a44a1fd9a22e4c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e321a2bb-1a33-4c6a-b5f1-7c2e4c7199ca",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "vitaliytv <v@nitra.ai>"
+    }
+  }
+}
