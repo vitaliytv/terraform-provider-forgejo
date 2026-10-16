@@ -8,6 +8,7 @@ resource "forgejo_repository" "example" {
 }
 
 resource "forgejo_team" "release" {
+  depends_on                = [forgejo_repository.example]
   organization_id           = forgejo_organization.example.id
   name                      = "release-team"
   includes_all_repositories = true

@@ -24,6 +24,7 @@ resource "forgejo_repository" "tags" {
   name = "protected-tags"
 }
 resource "forgejo_team" "release" {
+  depends_on = [forgejo_repository.tags]
   organization_id = forgejo_organization.tags.id
   name = "release-team"
   includes_all_repositories = true
