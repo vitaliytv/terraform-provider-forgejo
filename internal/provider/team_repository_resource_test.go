@@ -36,6 +36,7 @@ resource "forgejo_team" "readers" {
   units_map = { "repo.code" = "read" }
 }
 resource "forgejo_user" "reader" {
+  depends_on = [forgejo_team.readers, forgejo_repository.first, forgejo_repository.second]
   login = "test_team_repo_user"
   email = "test_team_repo_user@localhost.localdomain"
   password = "Local-Fixture-Pass123!"
@@ -49,6 +50,7 @@ resource "forgejo_team_member" "reader" {
 		if target != "" {
 			base += fmt.Sprintf(`
 resource "forgejo_team_repository" "binding" {
+  depends_on = [forgejo_team_member.reader]
   team_id = forgejo_team.readers.id
   repository_id = forgejo_repository.%s.id
 }
