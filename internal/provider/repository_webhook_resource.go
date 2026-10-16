@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -194,7 +195,7 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 				},
 			},
 			"events": schema.SetAttribute{
-				Description: "List of events which trigger the webhook.",
+				Description: "List of events which trigger the webhook. Forgejo >= 17 supports workflow_run_* and workflow_job_* events; use these instead of the deprecated action_run_* events after updating your webhook receiver for the new payload and headers. Changing the event set when the old or new set contains workflow events recreates the webhook, because Forgejo 17.0.0 does not update these events through the API.",
 				ElementType: types.StringType,
 				Optional:    true,
 				Computed:    true,
@@ -206,6 +207,27 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 						},
 					),
 				),
+				PlanModifiers: []planmodifier.Set{
+					setplanmodifier.RequiresReplaceIf(
+						func(ctx context.Context, req planmodifier.SetRequest, resp *setplanmodifier.RequiresReplaceIfFuncResponse) {
+							for _, value := range []types.Set{req.StateValue, req.PlanValue} {
+								if value.IsNull() || value.IsUnknown() {
+									continue
+								}
+								var events []string
+								resp.Diagnostics.Append(value.ElementsAs(ctx, &events, false)...)
+								for _, event := range events {
+									if strings.HasPrefix(event, "workflow_run_") || strings.HasPrefix(event, "workflow_job_") {
+										resp.RequiresReplace = true
+										return
+									}
+								}
+							}
+						},
+						"Changing workflow events requires replacement because Forgejo 17.0.0 cannot update them through the API.",
+						"Changing workflow events requires replacement because Forgejo 17.0.0 cannot update them through the API.",
+					),
+				},
 				Validators: []validator.Set{
 					setvalidator.ValueStringsAre(
 						stringvalidator.OneOf(
@@ -235,6 +257,20 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 							"release",
 							"repository",
 							"wiki",
+							"workflow_run_blocked",
+							"workflow_run_cancelled",
+							"workflow_run_failure",
+							"workflow_run_running",
+							"workflow_run_skipped",
+							"workflow_run_success",
+							"workflow_run_waiting",
+							"workflow_job_blocked",
+							"workflow_job_cancelled",
+							"workflow_job_failure",
+							"workflow_job_running",
+							"workflow_job_skipped",
+							"workflow_job_success",
+							"workflow_job_waiting",
 						),
 					),
 				},
@@ -254,8 +290,10 @@ func (r *repositoryWebhookResource) Schema(_ context.Context, _ resource.SchemaR
 						"gitea",
 						"gogs",
 						"msteams",
+						"packagist",
 						"slack",
 						"telegram",
+						"wechatwork",
 					),
 				},
 			},

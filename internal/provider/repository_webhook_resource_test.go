@@ -2,8 +2,11 @@ package provider_test
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"testing"
+
+	"codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v3"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
@@ -12,6 +15,75 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
+
+func TestAccRepositoryWebhookResourceWorkflowEvents(t *testing.T) {
+	const allEvents = `["workflow_run_blocked", "workflow_run_cancelled", "workflow_run_failure", "workflow_run_running", "workflow_run_skipped", "workflow_run_success", "workflow_run_waiting", "workflow_job_blocked", "workflow_job_cancelled", "workflow_job_failure", "workflow_job_running", "workflow_job_skipped", "workflow_job_success", "workflow_job_waiting"]`
+	config := func(events string) string {
+		return providerConfig + fmt.Sprintf(`
+resource "forgejo_repository" "workflow_events" {
+  name = "test_workflow_events"
+}
+resource "forgejo_repository_webhook" "workflow_events" {
+  repository_id = forgejo_repository.workflow_events.id
+  type          = "forgejo"
+  events        = %s
+  config = {
+    content_type = "json"
+    url          = "http://example.com/workflow-events"
+  }
+}
+`, events)
+	}
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() {
+			testAccPreCheck(t)
+			client, err := forgejo.NewClient(forgejoTestHost, forgejo.SetToken(os.Getenv("FORGEJO_API_TOKEN")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := client.CheckServerVersionConstraint(">= 17.0.0"); err != nil {
+				t.Skip("Workflow webhook events require Forgejo >= 17: ", err)
+			}
+		},
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{Config: config(`["push"]`)},
+			{
+				Config: config(allEvents),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("forgejo_repository_webhook.workflow_events", plancheck.ResourceActionReplace),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.workflow_events", tfjsonpath.New("events"), knownvalue.SetSizeExact(14)),
+				},
+			},
+			{
+				ResourceName:                         "forgejo_repository_webhook.workflow_events",
+				ImportState:                          true,
+				ImportStateIdFunc:                    testAccRepositoryWebhookConfigImportStateIdFunc("forgejo_repository_webhook.workflow_events"),
+				ImportStateIdPrefix:                  "tfadmin/test_workflow_events/",
+				ImportStateVerify:                    true,
+				ImportStateVerifyIdentifierAttribute: "webhook_id",
+			},
+			{
+				Config: config(`["workflow_run_failure", "workflow_job_failure"]`),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("forgejo_repository_webhook.workflow_events", plancheck.ResourceActionReplace),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.workflow_events", tfjsonpath.New("events"), knownvalue.SetExact([]knownvalue.Check{
+						knownvalue.StringExact("workflow_run_failure"),
+						knownvalue.StringExact("workflow_job_failure"),
+					})),
+				},
+			},
+		},
+	})
+}
 
 func TestAccRepositoryWebhookResource(t *testing.T) {
 	resource.Test(t, resource.TestCase{

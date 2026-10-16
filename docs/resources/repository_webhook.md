@@ -67,7 +67,7 @@ import {
 - `active` (Boolean) Boolean indicating if the webhook is active.
 - `authorization_header` (String, Sensitive) Authorization header to send to the target.
 - `branch_filter` (String) List of allowed branches for push, branch creation and branch deletion events, specified as glob pattern. If empty or *, events for all branches are reported.
-- `events` (Set of String) List of events which trigger the webhook.
+- `events` (Set of String) List of events which trigger the webhook. Forgejo >= 17 supports workflow_run_* and workflow_job_* events; use these instead of the deprecated action_run_* events after updating your webhook receiver for the new payload and headers. Changing the event set when the old or new set contains workflow events recreates the webhook, because Forgejo 17.0.0 does not update these events through the API.
 
 ### Read-Only
 
