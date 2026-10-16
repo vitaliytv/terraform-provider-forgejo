@@ -69,6 +69,17 @@ _Note:_ Acceptance tests create real resources, and often cost money to run.
 make testacc
 ```
 
+## Forgejo Versions in Acceptance Tests
+
+CI runs acceptance tests against Forgejo 15 and 17.0.0 with each supported
+Terraform and OpenTofu CLI version. The local Docker Compose environment defaults
+to Forgejo 15. To test Forgejo 17 locally, use an isolated test environment and set
+`FORGEJO_VERSION=17.0.0` when running Compose commands. Do not reuse a newer
+Forgejo database with an older server version.
+
+Tests for version-specific features should check the running server version and
+skip only when that feature is unavailable.
+
 ## AI Guidance
 
 Using AI tools to help write your PR is acceptable, but as the author, you are responsible for understanding every change. If you used AI tools in preparing your PR, you must disclose this in the description of your PR. For example, including “This PR was written in part with the assistance of generative AI,” in the PR description is sufficient.
