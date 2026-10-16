@@ -81,6 +81,17 @@ resource "forgejo_repository_webhook" "workflow_events" {
 					})),
 				},
 			},
+			{
+				Config: config(`["push"]`),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("forgejo_repository_webhook.workflow_events", plancheck.ResourceActionReplace),
+					},
+				},
+				ConfigStateChecks: []statecheck.StateCheck{
+					statecheck.ExpectKnownValue("forgejo_repository_webhook.workflow_events", tfjsonpath.New("events"), knownvalue.SetExact([]knownvalue.Check{knownvalue.StringExact("push")})),
+				},
+			},
 		},
 	})
 }
