@@ -113,6 +113,8 @@ type repositoryResourceModel struct {
 	TrustModel                    types.String `tfsdk:"trust_model"`
 	CloneAddr                     types.String `tfsdk:"clone_addr"`
 	AuthToken                     types.String `tfsdk:"auth_token"`
+	AuthUsername                  types.String `tfsdk:"auth_username"`
+	AuthPassword                  types.String `tfsdk:"auth_password"`
 	LFS                           types.Bool   `tfsdk:"lfs"`
 	LFSEndpoint                   types.String `tfsdk:"lfs_endpoint"`
 	Milestones                    types.Bool   `tfsdk:"milestones"`
@@ -1114,6 +1116,25 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.RequiresReplaceIfConfigured(),
 				},
 			},
+			"auth_username": schema.StringAttribute{
+				Description:   "Username for authenticating with the migration source. Changing this forces a new resource to be created. Requires clone_addr and auth_password; conflicts with auth_token.",
+				Optional:      true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplaceIfConfigured()},
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("clone_addr"), path.MatchRoot("auth_password")),
+					stringvalidator.ConflictsWith(path.MatchRoot("auth_token")),
+				},
+			},
+			"auth_password": schema.StringAttribute{
+				Description:   "Password for authenticating with the migration source. The value is stored in Terraform state. Changing this forces a new resource to be created. Requires clone_addr and auth_username; conflicts with auth_token.",
+				Optional:      true,
+				Sensitive:     true,
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplaceIfConfigured()},
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("clone_addr"), path.MatchRoot("auth_username")),
+					stringvalidator.ConflictsWith(path.MatchRoot("auth_token")),
+				},
+			},
 			"auth_token": schema.StringAttribute{
 				// Write-only attribute
 				Description: "API token for authenticating with migrate / clone URL. **Note**: This setting is only effective if `clone_addr` is set.",
@@ -1190,7 +1211,7 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"service": schema.StringAttribute{
 				// Create-only attribute
-				Description: "Service to migrate from. Changing this forces a new resource to be created. **Note**: This setting is only effective if `clone_addr` is set.",
+				Description: "Service to migrate from: git, github, gitlab, forgejo, gitea, gogs, onedev, gitbucket, codebase, pagure, or bitbucketdc. Bitbucket Data Center requires Forgejo >= 17 and is distinct from Bitbucket Cloud. Changing this forces a new resource to be created. **Note**: This setting is only effective if `clone_addr` is set.",
 				Optional:    true,
 				Computed:    true,
 				Default:     stringdefault.StaticString(""),
@@ -1208,6 +1229,11 @@ func (r *repositoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 						"forgejo",
 						"gitea",
 						"gogs",
+						"onedev",
+						"gitbucket",
+						"codebase",
+						"pagure",
+						"bitbucketdc",
 					),
 				},
 			},
@@ -1293,6 +1319,8 @@ func (r *repositoryResource) Create(ctx context.Context, req resource.CreateRequ
 			CloneAddr:      data.CloneAddr.ValueString(),
 			Service:        forgejo.GitServiceType(data.Service.ValueString()),
 			AuthToken:      data.AuthToken.ValueString(),
+			AuthUsername:   data.AuthUsername.ValueString(),
+			AuthPassword:   data.AuthPassword.ValueString(),
 			Mirror:         data.Mirror.ValueBool(),
 			Private:        data.Private.ValueBool(),
 			Description:    data.Description.ValueString(),
@@ -1946,6 +1974,8 @@ func (r *repositoryResource) ImportState(ctx context.Context, req resource.Impor
 
 	// Initialize sensitive write-only fields to null value
 	state.AuthToken = types.StringNull()
+	state.AuthUsername = types.StringNull()
+	state.AuthPassword = types.StringNull()
 
 	// Save data into Terraform state
 	diags = resp.State.Set(ctx, &state)
