@@ -18,6 +18,7 @@ It currently provides the following...
 Resources:
 
 - `forgejo_branch_protection` ([documentation](docs/resources/branch_protection.md))
+- `forgejo_tag_protection` ([documentation](docs/resources/tag_protection.md))
 - `forgejo_collaborator` ([documentation](docs/resources/collaborator.md))
 - `forgejo_deploy_key` ([documentation](docs/resources/deploy_key.md))
 - `forgejo_gpg_key` ([documentation](docs/resources/gpg_key.md))
