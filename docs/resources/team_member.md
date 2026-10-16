@@ -3,12 +3,12 @@
 page_title: "forgejo_team_member Resource - forgejo"
 subcategory: ""
 description: |-
-  Forgejo team member resource.
+  Forgejo team member resource. Manages accepted membership, not pending invitations. When ADD_MEMBERS_BY_INVITATIONS is enabled, a user who is not already an organization member must accept the invitation before this resource can be created. An apply may send the invitation and return an actionable error until it is accepted.
 ---
 
 # forgejo_team_member (Resource)
 
-Forgejo team member resource.
+Forgejo team member resource. Manages accepted membership, not pending invitations. When ADD_MEMBERS_BY_INVITATIONS is enabled, a user who is not already an organization member must accept the invitation before this resource can be created. An apply may send the invitation and return an actionable error until it is accepted.
 
 ## Example Usage
 

@@ -41,7 +41,7 @@ func (r *teamMemberResource) Metadata(_ context.Context, req resource.MetadataRe
 // Schema defines the schema for the resource.
 func (r *teamMemberResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Forgejo team member resource.",
+		Description: "Forgejo team member resource. Manages accepted membership, not pending invitations. When ADD_MEMBERS_BY_INVITATIONS is enabled, a user who is not already an organization member must accept the invitation before this resource can be created. An apply may send the invitation and return an actionable error until it is accepted.",
 
 		Attributes: map[string]schema.Attribute{
 			"team_id": schema.Int64Attribute{
@@ -195,6 +195,23 @@ func setTeamMember(ctx context.Context, client *forgejo.Client, teamID int64, us
 	// Use Forgejo client to set a team member
 	res, err := client.AddTeamMember(teamID, userName)
 	if err == nil {
+		// A successful PUT can create only an invitation on Forgejo >= 17.
+		// Verify membership before recording it in Terraform state.
+		_, memberRes, memberErr := client.GetTeamMember(teamID, userName)
+		if memberErr == nil {
+			return diags
+		}
+		if memberRes != nil && memberRes.StatusCode == 404 {
+			diags.AddError("Team membership not yet established", fmt.Sprintf(
+				"Forgejo accepted the request to add user '%s' to team %d, but the user is not a team member yet. "+
+					"If ADD_MEMBERS_BY_INVITATIONS is enabled, the user must accept the organization invitation before applying again. "+
+					"This resource manages accepted membership, not pending invitations. The invitation may already have been sent; it is not recorded as membership in Terraform state.",
+				userName, teamID))
+		} else {
+			diags.AddError("Unable to verify team membership", fmt.Sprintf(
+				"Forgejo accepted the request to add user '%s' to team %d, but membership could not be verified: %s",
+				userName, teamID, memberErr))
+		}
 		return diags
 	}
 
@@ -208,6 +225,11 @@ func setTeamMember(ctx context.Context, client *forgejo.Client, teamID int64, us
 		})
 
 		switch res.StatusCode {
+		case 409:
+			msg = fmt.Sprintf(
+				"An invitation for user '%s' to team %d is already pending. The user must accept the invitation before applying again. This resource manages accepted membership, not pending invitations.",
+				userName, teamID,
+			)
 		case 404:
 			msg = fmt.Sprintf(
 				"Either user '%s' or team with ID %d not found: %s",
